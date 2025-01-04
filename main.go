@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"HelpBot/bot"
 	"HelpBot/client/telegram"
 )
 
@@ -13,12 +14,11 @@ const (
 	messagesLimit  = 100
 )
 
-var predefinedResponse = "В 19:10"
-
 func main() {
 	token := "7828331860:AAG_XkEaE2vY4EKdGZaOJ9xD74D1fVV0U_k" // Replace with your bot token
 
 	client := telegram.NewClient(tgHost, token)
+	handler := bot.NewHandler(&client)
 
 	offset := 0
 	for {
@@ -29,16 +29,9 @@ func main() {
 		}
 
 		for _, update := range updates {
-			if update.Message == nil {
-				continue
+			if err := handler.HandleUpdate(update); err != nil {
+				log.Printf("Error handling update: %v", err)
 			}
-
-			 // Send predefined message instead of echo
-			err = client.SendMessage(update.Message.Chat.ID, predefinedResponse)
-			if err != nil {
-				log.Printf("Error sending message: %v", err)
-			}
-
 			offset = update.ID + 1
 		}
 

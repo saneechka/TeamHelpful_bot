@@ -8,6 +8,7 @@ import (
 const (
 	WelcomeMessage = "Выберите действие:"
 	BalanceMessage = "Ваш текущий баланс: 1000 руб."
+	PaymentMessage = "В разработке,не ломать:)"
 )
 
 type Handler struct {
@@ -32,6 +33,8 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 		return h.client.SendMessageWithKeyboard(update.Message.Chat.ID, WelcomeMessage, h.keyboard)
 	case "Мой баланс":
 		return h.client.SendMessage(update.Message.Chat.ID, BalanceMessage)
+	case "Способ оплаты":
+		return h.client.SendMessage(update.Message.Chat.ID, PaymentMessage)
 	default:
 		return nil // Ignore all other messages
 	}

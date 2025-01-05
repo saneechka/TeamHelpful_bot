@@ -9,6 +9,7 @@ const (
 	WelcomeMessage = "Выберите действие:"
 	BalanceMessage = "Ваш текущий баланс: 1000 руб."
 	PaymentMessage = "В разработке,не ломать:)"
+	AccountMessage = "бла бла бла какая-то инфа"
 )
 
 type Handler struct {
@@ -35,6 +36,8 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 		return h.client.SendMessage(update.Message.Chat.ID, BalanceMessage)
 	case "Способ оплаты":
 		return h.client.SendMessage(update.Message.Chat.ID, PaymentMessage)
+	case "Аккаунт":
+		return h.client.SendMessage(update.Message.Chat.ID, AccountMessage)
 	default:
 		return nil // Ignore all other messages
 	}

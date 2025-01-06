@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"HelpBot/bot"
@@ -9,16 +10,23 @@ import (
 )
 
 const (
-	tgHost         = "api.telegram.org"
-	pollTimeout    = 100 * time.Millisecond
-	messagesLimit  = 100
+	pollTimeout   = 100 * time.Millisecond
+	messagesLimit = 100
 )
 
 func main() {
-	token := "7828331860:AAG_XkEaE2vY4EKdGZaOJ9xD74D1fVV0U_k" // Replace with your bot token
+	// Исправляем инициализацию токена
+	token := "7828331860:AAG_XkEaE2vY4EKdGZaOJ9xD74D1fVV0U_k"
+	if envToken := os.Getenv("BOT_TOKEN"); envToken != "" {
+		token = envToken
+	}
 
-	client := telegram.NewClient(tgHost, token)
-	handler := bot.NewHandler(&client)
+	// Инициализируем клиент без указания хоста (он уже включен в клиент)
+	client := telegram.NewClient(token)
+	handler, err := bot.NewHandler(client, "users.db")
+	if err != nil {
+		log.Fatalf("Error creating handler: %v", err)
+	}
 
 	offset := 0
 	for {

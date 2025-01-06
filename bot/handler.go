@@ -10,7 +10,7 @@ import (
 
 const (
 	WelcomeMessage      = "Выберите действие:"
-	BalanceMessage      = "Ваш текущий баланс 10 бабл-ти."
+	BalanceMessage      = "Ваш текущий баланс 10 ."
 	PaymentMessage      = "Выберите способ оплаты:"
 	AccountMessage      = "Информация о вашем  персональном аккаунте"
 	PaymentOption1      = "Нажмите 'Произвести оплату' для продолжения"
@@ -248,7 +248,7 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 
 	case StateAwaitingNumber:
 		authInfo.Number = text
-		if err := h.db.SaveUserSession(chatID, authInfo.Username, authInfo.Position, authInfo.Birthday, authInfo.Number); err != nil {
+		if err := h.db.SaveUserSession(chatID, authInfo.Username, authInfo.Position, authInfo.Birthday, authInfo.Number, 0.0); err != nil {
 			return err
 		}
 		authInfo.State = StateAuthenticated
@@ -327,7 +327,7 @@ func (h *Handler) handleLoginComplete(chatID int64, username, password string) e
     h.authenticatedUsers[chatID] = username
     h.authMu.Unlock()
 
-    // Сохраняем базовую сессию с начальным балансом
+    // Сохраняем базовую сессию с начальным балансом 0
     if err := h.db.SaveUserSession(chatID, username, "", "", "", 0.0); err != nil {
         log.Printf("Error saving user session: %v", err)
     }

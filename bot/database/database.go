@@ -52,11 +52,11 @@ func NewDatabase(dbPath string) (*Database, error) {
     return &Database{db: db}, nil
 }
 
-func (d *Database) SaveUserSession(chatID int64, username string, position string, birthday string, number string) error {
+func (d *Database) SaveUserSession(chatID int64, username string, position string, birthday string, number string, balance float64) error {
     _, err := d.db.Exec(`
         INSERT OR REPLACE INTO user_sessions (chat_id, username, login_time, position, birthday, number, balance)
-        VALUES (?, ?, ?, ?, ?, ?, COALESCE((SELECT balance FROM user_sessions WHERE chat_id = ?), 0.0))
-    `, chatID, username, time.Now(), position, birthday, number, chatID)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, chatID, username, time.Now(), position, birthday, number, balance)
     return err
 }
 

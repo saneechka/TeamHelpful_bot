@@ -22,11 +22,11 @@ type UserSession struct {
 
 func NewDatabase(dbPath string) (*Database, error) {
     db, err := sql.Open("sqlite3", dbPath)
-    if err != nil {
+    if (err != nil) {
         return nil, err
     }
 
-    // Создаем таблицу напрямую, без промежуточных шагов
+    // Создаем таблицы, включая таблицу для мастер-пароля
     _, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS user_sessions (
             chat_id INTEGER PRIMARY KEY,
@@ -36,7 +36,18 @@ func NewDatabase(dbPath string) (*Database, error) {
             birthday TEXT DEFAULT '',
             number TEXT DEFAULT '',
             balance REAL DEFAULT 0.0
-        )
+        );
+
+        CREATE TABLE IF NOT EXISTS user_credentials (
+            username TEXT PRIMARY KEY,
+            password TEXT NOT NULL,
+            created_at DATETIME NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS master_password (
+            password TEXT NOT NULL,
+            created_at DATETIME NOT NULL
+        );
     `)
     if err != nil {
         return nil, err
@@ -108,6 +119,68 @@ func (d *Database) UpdateBalance(chatID int64, newBalance float64) error {
         UPDATE user_sessions SET balance = ? WHERE chat_id = ?
     `, newBalance, chatID)
     return err
+}
+
+// Добавляем методы для работы с паролями
+func (d *Database) SetUserPassword(username, password string) error {
+    _, err := d.db.Exec(`
+        INSERT OR REPLACE INTO user_credentials (username, password, created_at)
+        VALUES (?, ?, ?)
+    `, username, password, time.Now())
+    return err
+}
+
+func (d *Database) CheckUserPassword(username, password string) (bool, error) {
+    var storedPassword string
+    err := d.db.QueryRow(`
+        SELECT password FROM user_credentials WHERE username = ?
+    `, username).Scan(&storedPassword)
+
+    if err == sql.ErrNoRows {
+        return false, nil
+    }
+    if err != nil {
+        return false, err
+    }
+
+    return storedPassword == password, nil
+}
+
+func (d *Database) CheckUserExists(username string) (bool, error) {
+    var exists bool
+    err := d.db.QueryRow(`
+        SELECT EXISTS(SELECT 1 FROM user_credentials WHERE username = ?)
+    `, username).Scan(&exists)
+    
+    if err != nil {
+        return false, err
+    }
+    return exists, nil
+}
+
+func (d *Database) SetMasterPassword(password string) error {
+    _, err := d.db.Exec(`
+        DELETE FROM master_password;
+        INSERT INTO master_password (password, created_at)
+        VALUES (?, ?)
+    `, password, time.Now())
+    return err
+}
+
+func (d *Database) GetMasterPassword() (string, error) {
+    var password string
+    err := d.db.QueryRow(`
+        SELECT password FROM master_password LIMIT 1
+    `).Scan(&password)
+
+    if err == sql.ErrNoRows {
+        return "", nil
+    }
+    if err != nil {
+        return "", err
+    }
+
+    return password, nil
 }
 
 func (d *Database) Close() error {

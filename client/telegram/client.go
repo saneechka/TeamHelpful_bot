@@ -8,6 +8,7 @@ import (
 	"net/url"
 	_"path"
 	"strconv"
+	"crypto/tls"
 )
 
 const apiHost = "https://api.telegram.org"
@@ -18,10 +19,17 @@ type Client struct {
 }
 
 func NewClient(token string) *Client {
-    return &Client{
-		client:  &http.Client{},
+	// Create custom transport with TLS config
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		},
+	}
+
+	return &Client{
+		client:  &http.Client{Transport: tr},
 		baseURL: apiHost + "/bot" + token,
-    }
+	}
 }
 
 type UpdatesResponse struct {

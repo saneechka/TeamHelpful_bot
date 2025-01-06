@@ -5,11 +5,11 @@ import "HelpBot/client/telegram"
 func CreateMainKeyboard() telegram.ReplyKeyboardMarkup {
     return telegram.ReplyKeyboardMarkup{
         Keyboard: [][]telegram.KeyboardButton{
-            {{Text: "Мой баланс"}, {Text: "Мой аккаунт"}},
-            {{Text: "Способ оплаты"}, {Text: "Информация о команде"}},
-            {{Text: "Выйти"}},
+            {{Text: "Мой баланс"}, {Text: "Способ оплаты"}, {Text: "Мой аккаунт"}},
+            {{Text: "Информация о команде"}},
         },
         ResizeKeyboard: true,
+        OneTimeKeyboard: false,
     }
 }
 

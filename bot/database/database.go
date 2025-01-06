@@ -22,13 +22,13 @@ type UserSession struct {
 
 func NewDatabase(dbPath string) (*Database, error) {
     db, err := sql.Open("sqlite3", dbPath)
-    if (err != nil) {
+    if err != nil {
         return nil, err
     }
 
-    // Создаем таблицу с новой структурой
+    // Создаем таблицу напрямую, без промежуточных шагов
     _, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS user_sessions_new (
+        CREATE TABLE IF NOT EXISTS user_sessions (
             chat_id INTEGER PRIMARY KEY,
             username TEXT NOT NULL,
             login_time DATETIME NOT NULL,
@@ -36,14 +36,7 @@ func NewDatabase(dbPath string) (*Database, error) {
             birthday TEXT DEFAULT '',
             number TEXT DEFAULT '',
             balance REAL DEFAULT 0.0
-        );
-        
-        INSERT OR IGNORE INTO user_sessions_new (chat_id, username, login_time, position, birthday, number)
-        SELECT chat_id, username, login_time, position, birthday, number FROM user_sessions;
-        
-        DROP TABLE IF EXISTS user_sessions;
-        
-        ALTER TABLE user_sessions_new RENAME TO user_sessions;
+        )
     `)
     if err != nil {
         return nil, err

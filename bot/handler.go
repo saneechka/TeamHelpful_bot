@@ -10,7 +10,7 @@ import (
 
 const (
 	WelcomeMessage      = "Выберите действие:"
-	BalanceMessage      = "Ваш текущий баланс 10 ."
+	BalanceMessage      = "Ваш текущий баланс 10 бабл-ти."
 	PaymentMessage      = "Выберите способ оплаты:"
 	AccountMessage      = "Информация о вашем  персональном аккаунте"
 	PaymentOption1      = "Нажмите 'Произвести оплату' для продолжения"
@@ -25,7 +25,7 @@ const (
 	AskUsernameMessage  = "Введите ваше имя пользователя:"
 	AskPasswordMessage  = "Введите ваш пароль:"
 	CancelAuthMessage   = "Авторизация отменена"
-	MASTER_PASSWORD     = "ksushka" // Задайте нужный пароль здесь
+	MASTER_PASSWORD     = "ksushk" // Задайте нужный пароль здесь
 	LogoutMessage       = "Вы успешно вышли из системы!"
 	TeamRosterMessage   = "Состав команды:"
 	AskPositionMessage  = "Введите вашу позицию в команде:"
@@ -131,13 +131,13 @@ func (h *Handler) isProcessingPayment(userID int64) bool {
 }
 
 func (h *Handler) setProcessingPayment(userID int64, status bool) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if status {
-		h.processingUsers[userID] = true
-	} else {
-		delete(h.processingUsers, userID)
-	}
+    h.mu.Lock()
+    defer h.mu.Unlock()
+    if status {
+        h.processingUsers[userID] = true
+    } else {
+        delete(h.processingUsers, userID)  // Fixed: delete takes map and key
+    }
 }
 
 func (h *Handler) isAuthenticated(chatID int64) bool {
@@ -266,7 +266,7 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
             return err
         }
         return h.client.SendMessage(update.Message.Chat.ID, 
-            fmt.Sprintf("Ваш текущий баланс: %.2f бабл-ти", session.Balance))
+            fmt.Sprintf("Ваш текущий баланс: %.2f копеек", session.Balance))
 	case "Способ оплаты":
 		return h.client.SendMessageWithKeyboard(update.Message.Chat.ID, PaymentMessage, h.paymentKeyboard)
 	case "Мой аккаунт":

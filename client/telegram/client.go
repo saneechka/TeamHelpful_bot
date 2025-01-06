@@ -6,27 +6,22 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path"
+	_"path"
 	"strconv"
 )
 
 const apiHost = "https://api.telegram.org"
 
 type Client struct {
-	host     string
-	basePath string
-	client   *http.Client
+	client  *http.Client
+	baseURL string
 }
 
 func NewClient(token string) *Client {
     return &Client{
-		client: &http.Client{},
-		basePath:   apiHost + "/bot" + token,
+		client:  &http.Client{},
+		baseURL: apiHost + "/bot" + token,
     }
-}
-
-func OurBasePath(token string) string {
-	return "bot" + token
 }
 
 type UpdatesResponse struct {
@@ -53,35 +48,31 @@ func (c *Client) Updates(offset, limit int) ([]Update, error) {
 }
 
 func (c *Client) DoRequest(method string, query url.Values) ([]byte, error) {
-	u := url.URL{
-		Scheme: "https",
-		Host:   c.host,
-		Path:   path.Join(c.basePath, method),
-	}
+    u := fmt.Sprintf("%s/%s", c.baseURL, method)
+    
+    request, err := http.NewRequest(http.MethodGet, u, nil)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create request: %w", err)
+    }
 
-	request, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
+    request.URL.RawQuery = query.Encode()
 
-	request.URL.RawQuery = query.Encode()
+    response, err := c.client.Do(request)
+    if err != nil {
+        return nil, fmt.Errorf("failed to send request: %w", err)
+    }
+    defer response.Body.Close()
 
-	response, err := c.client.Do(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer response.Body.Close()
+    body, err := io.ReadAll(response.Body)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read response: %w", err)
+    }
 
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
+    if response.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("unexpected status code: %d, body: %s", response.StatusCode, body)
+    }
 
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d, body: %s", response.StatusCode, body)
-	}
-
-	return body, nil
+    return body, nil
 }
 
 func (c *Client) SendMessage(chatID int64, text string) error {

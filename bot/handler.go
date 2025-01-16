@@ -3,46 +3,53 @@ package bot
 import (
 	"HelpBot/bot/database"
 	"HelpBot/client/telegram"
-	"log"
-	"sync"
 	"fmt"
+	"log"
+	"strconv"
+	"sync"
 )
 
 const (
-	WelcomeMessage      = "Выберите действие:"
-	BalanceMessage      = "Ваш текущий баланс 10 бабл-ти."
-	PaymentMessage      = "Выберите способ оплаты:"
-	AccountMessage      = "Информация о вашем  персональном аккаунте"
-	PaymentOption1      = "Нажмите 'Произвести оплату' для продолжения"
-	PaymentOption2      = "Нажмите 'Произвести оплату' для продолжения"
-	TeamMessage         = "Сборище тех кто в пустые не забивает"
-	ProcessingPayment   = "Обработка оплаты..."
-	AlreadyProcessing   = "Оплата уже обрабатывается. Пожалуйста, подождите."
-	LoginMessage        = "Пожалуйста, войдите в систему"
-	LoginSuccessMessage = "Вы успешно вошли в систему!"
-	LoginFailMessage    = "Неверный пароль. Попробуйте снова."
-	AuthStartMessage    = "Добро пожаловать! Нажмите кнопку для входа:"
-	AskUsernameMessage  = "Введите ваше имя пользователя:"
-	AskPasswordMessage  = "Введите ваш пароль:"
-	CancelAuthMessage   = "Авторизация отменена"
-	MASTER_PASSWORD     = "ks" // Задайте нужный пароль здесь
-	LogoutMessage       = "Вы успешно вышли из системы!"
-	TeamRosterMessage   = "Состав команды:"
-	AskPositionMessage  = "Введите вашу позицию в команде:"
-	AskBirthdayMessage  = "Введите вашу дату рождения (например, 01.01.1990):"
-	ProfileSetupComplete = "Информация сохранена!"
-	AskNumberMessage    = "Введите ваш игровой номер:"
-	PositionForward     = "Нападающий"
-	PositionDefender    = "Защитник"
-	PositionGoalie      = "Вратарь"
-	PasswordSetMessage = "Придумайте пароль:"
-    PasswordSetSuccessMessage = "Пароль успешно установлен!"
-    UserNotFoundMessage = "Пользователь не найден. Пожалуйста, зарегистрируйтесь."
-	SetPasswordButtonText = "Установить пароль"
-    PasswordNotSetMessage = "Сначала установите пароль с помощью кнопки 'Установить пароль'"
-	OnlyPasswordSetMessage = "Сначала необходимо установить пароль"
-	AskNewPasswordMessage = "Введите пароль, который будет использоваться для входа:"
-    SetPasswordSuccessMessage = "Пароль сохранен! Теперь вы можете войти, используя любой логин и установленный пароль."
+	WelcomeMessage            = "Выберите действие:"
+	BalanceMessage            = "Ваш текущий баланс 10 бабл-ти."
+	PaymentMessage            = "Выберите способ оплаты:"
+	AccountMessage            = "Информация о вашем  персональном аккаунте"
+	PaymentOption1            = "Нажмите 'Произвести оплату' для продолжения"
+	PaymentOption2            = "Нажмите 'Произвести оплату' для продолжения"
+	TeamMessage               = "Сборище тех кто в пустые не забивает"
+	ProcessingPayment         = "Обработка оплаты..."
+	AlreadyProcessing         = "Оплата уже обрабатывается. Пожалуйста, подождите."
+	LoginMessage              = "Пожалуйста, войдите в систему"
+	LoginSuccessMessage       = "Вы успешно вошли в систему!"
+	LoginFailMessage          = "Неверный пароль. Попробуйте снова."
+	AuthStartMessage          = "Добро пожаловать! Нажмите кнопку для входа:"
+	AskUsernameMessage        = "Введите ваше имя пользователя:"
+	AskPasswordMessage        = "Введите ваш пароль:"
+	CancelAuthMessage         = "Авторизация отменена"
+	MASTER_PASSWORD           = "ks" // Задайте нужный пароль здесь
+	LogoutMessage             = "Вы успешно вышли из системы!"
+	TeamRosterMessage         = "Состав команды:"
+	AskPositionMessage        = "Введите вашу позицию в команде:"
+	AskBirthdayMessage        = "Введите вашу дату рождения (например, 01.01.1990):"
+	ProfileSetupComplete      = "Информация сохранена!"
+	AskNumberMessage          = "Введите ваш игровой номер:"
+	PositionForward           = "Нападающий"
+	PositionDefender          = "Защитник"
+	PositionGoalie            = "Вратарь"
+	PasswordSetMessage        = "Придумайте пароль:"
+	PasswordSetSuccessMessage = "Пароль успешно установлен!"
+	UserNotFoundMessage       = "Пользователь не найден. Пожалуйста, зарегистрируйтесь."
+	SetPasswordButtonText     = "Установить пароль"
+	PasswordNotSetMessage     = "Сначала установите пароль с помощью кнопки 'Установить пароль'"
+	OnlyPasswordSetMessage    = "Сначала необходимо установить пароль"
+	AskNewPasswordMessage     = "Введите пароль, который будет использоваться для входа:"
+	SetPasswordSuccessMessage = "Пароль сохранен! Теперь вы можете войти, используя любой логин и установленный пароль."
+	EnterAmountMessage        = "Введите сумму для пополнения (в рублях):"
+	PaymentDetailsMessage     = "Для пополнения баланса переведите указанную сумму на счет:\n" +
+		"Номер карты: 1234 5678 9012 3456\n" +
+		"После перевода нажмите 'Подтвердить оплату'"
+	PaymentConfirmationMessage = "Оплата будет проверена администратором в течение 24 часов"
+	InvalidAmountMessage       = "Пожалуйста, введите корректную сумму (целое число больше 0)"
 )
 
 type AuthState int
@@ -56,6 +63,8 @@ const (
 	StateAwaitingNumber
 	StateAuthenticated
 	StateAwaitingNewPassword
+	StateAwaitingPaymentAmount
+	StateAwaitingPaymentConfirmation
 )
 
 type UserAuthInfo struct {
@@ -65,6 +74,7 @@ type UserAuthInfo struct {
 	Birthday      string
 	Number        string
 	IsRegistering bool
+	PaymentAmount float64
 }
 
 type Handler struct {
@@ -83,7 +93,7 @@ type Handler struct {
 
 func NewHandler(client *telegram.Client, dbPath string) (*Handler, error) {
 	db, err := database.NewDatabase(dbPath)
-	if (err != nil) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -102,14 +112,14 @@ func NewHandler(client *telegram.Client, dbPath string) (*Handler, error) {
 }
 
 func CreateAuthKeyboard() telegram.ReplyKeyboardMarkup {
-    return telegram.ReplyKeyboardMarkup{
-        Keyboard: [][]telegram.KeyboardButton{
-            {{Text: "Войти"}},
-            {{Text: SetPasswordButtonText}},
-            {{Text: "Отмена"}},
-        },
-        ResizeKeyboard: true,
-    }
+	return telegram.ReplyKeyboardMarkup{
+		Keyboard: [][]telegram.KeyboardButton{
+			{{Text: "Войти"}},
+			{{Text: SetPasswordButtonText}},
+			{{Text: "Отмена"}},
+		},
+		ResizeKeyboard: true,
+	}
 }
 
 func CreateTeamKeyboard() telegram.ReplyKeyboardMarkup {
@@ -123,15 +133,15 @@ func CreateTeamKeyboard() telegram.ReplyKeyboardMarkup {
 }
 
 func CreatePositionKeyboard() telegram.ReplyKeyboardMarkup {
-    return telegram.ReplyKeyboardMarkup{
-        Keyboard: [][]telegram.KeyboardButton{
-            {{Text: PositionForward}},
-            {{Text: PositionDefender}},
-            {{Text: PositionGoalie}},
-            {{Text: "Отмена"}},
-        },
-        ResizeKeyboard: true,
-    }
+	return telegram.ReplyKeyboardMarkup{
+		Keyboard: [][]telegram.KeyboardButton{
+			{{Text: PositionForward}},
+			{{Text: PositionDefender}},
+			{{Text: PositionGoalie}},
+			{{Text: "Отмена"}},
+		},
+		ResizeKeyboard: true,
+	}
 }
 
 func (h *Handler) isProcessingPayment(userID int64) bool {
@@ -141,13 +151,13 @@ func (h *Handler) isProcessingPayment(userID int64) bool {
 }
 
 func (h *Handler) setProcessingPayment(userID int64, status bool) {
-    h.mu.Lock()
-    defer h.mu.Unlock()
-    if status {
-        h.processingUsers[userID] = true
-    } else {
-        delete(h.processingUsers, userID)  // Fixed: delete takes map and key
-    }
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if status {
+		h.processingUsers[userID] = true
+	} else {
+		delete(h.processingUsers, userID) // Fixed: delete takes map and key
+	}
 }
 
 func (h *Handler) isAuthenticated(chatID int64) bool {
@@ -158,50 +168,50 @@ func (h *Handler) isAuthenticated(chatID int64) bool {
 }
 
 func (h *Handler) getTeamRosterMessage() (string, error) {
-    users, err := h.db.GetAllActiveUsers()
-    if err != nil {
-        return "", err
-    }
+	users, err := h.db.GetAllActiveUsers()
+	if err != nil {
+		return "", err
+	}
 
-    message := "Состав команды:\n\n"
-    for i, user := range users {
-        message += fmt.Sprintf("%d. %s\n", i+1, user.Username)
-    }
-    
-    if len(users) == 0 {
-        message += "Пока никого нет в команде"
-    }
-    
-    return message, nil
+	message := "Состав команды:\n\n"
+	for i, user := range users {
+		message += fmt.Sprintf("%d. %s\n", i+1, user.Username)
+	}
+
+	if len(users) == 0 {
+		message += "Пока никого нет в команде"
+	}
+
+	return message, nil
 }
 
 func (h *Handler) getAccountInfo(chatID int64) (string, error) {
-    session, err := h.db.GetUserSession(chatID)
-    if err != nil {
-        return "", err
-    }
-    
-    if session.Position == "" || session.Birthday == "" {
-        h.authStates[chatID] = UserAuthInfo{
-            State: StateAwaitingPosition,
-            Username: session.Username,
-        }
-        return AskPositionMessage, nil
-    }
-    
-    return fmt.Sprintf("Ваш аккаунт:\nИмя: %s\nПозиция: %s\nДата рождения: %s", 
-        session.Username, session.Position, session.Birthday), nil
+	session, err := h.db.GetUserSession(chatID)
+	if err != nil {
+		return "", err
+	}
+
+	if session.Position == "" || session.Birthday == "" {
+		h.authStates[chatID] = UserAuthInfo{
+			State:    StateAwaitingPosition,
+			Username: session.Username,
+		}
+		return AskPositionMessage, nil
+	}
+
+	return fmt.Sprintf("Ваш аккаунт:\nИмя: %s\nПозиция: %s\nДата рождения: %s",
+		session.Username, session.Position, session.Birthday), nil
 }
 
 func (h *Handler) createInitialKeyboard() telegram.ReplyKeyboardMarkup {
-    return telegram.ReplyKeyboardMarkup{
-        Keyboard: [][]telegram.KeyboardButton{
-            {{Text: SetPasswordButtonText}},
-            {{Text: "Войти"}},
-            {{Text: "Отмена"}},
-        },
-        ResizeKeyboard: true,
-    }
+	return telegram.ReplyKeyboardMarkup{
+		Keyboard: [][]telegram.KeyboardButton{
+			{{Text: SetPasswordButtonText}},
+			{{Text: "Войти"}},
+			{{Text: "Отмена"}},
+		},
+		ResizeKeyboard: true,
+	}
 }
 
 func (h *Handler) HandleUpdate(update telegram.Update) error {
@@ -214,7 +224,7 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 
 	// Проверяем состояние авторизации
 	authInfo, exists := h.authStates[chatID]
-	if (!exists) {
+	if !exists {
 		authInfo = UserAuthInfo{State: StateNone}
 		h.authStates[chatID] = authInfo
 	}
@@ -226,63 +236,63 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 	}
 
 	// Обработка процесса авторизации
-	if (!h.isAuthenticated(chatID)) {
-        switch authInfo.State {
-        case StateNone:
-            switch text {
-            case "/start":
-                return h.client.SendMessageWithKeyboard(chatID, AuthStartMessage, h.createInitialKeyboard())
-            case SetPasswordButtonText:
-                authInfo.State = StateAwaitingNewPassword
-                h.authStates[chatID] = authInfo
-                return h.client.SendMessage(chatID, AskNewPasswordMessage)
-            case "Войти":
-                authInfo.State = StateAwaitingUsername
-                h.authStates[chatID] = authInfo
-                return h.client.SendMessage(chatID, AskUsernameMessage)
-            default:
-                return h.client.SendMessageWithKeyboard(chatID, AuthStartMessage, h.createInitialKeyboard())
-            }
+	if !h.isAuthenticated(chatID) {
+		switch authInfo.State {
+		case StateNone:
+			switch text {
+			case "/start":
+				return h.client.SendMessageWithKeyboard(chatID, AuthStartMessage, h.createInitialKeyboard())
+			case SetPasswordButtonText:
+				authInfo.State = StateAwaitingNewPassword
+				h.authStates[chatID] = authInfo
+				return h.client.SendMessage(chatID, AskNewPasswordMessage)
+			case "Войти":
+				authInfo.State = StateAwaitingUsername
+				h.authStates[chatID] = authInfo
+				return h.client.SendMessage(chatID, AskUsernameMessage)
+			default:
+				return h.client.SendMessageWithKeyboard(chatID, AuthStartMessage, h.createInitialKeyboard())
+			}
 
-        case StateAwaitingNewPassword:
-            // Сохраняем общий пароль для всех пользователей
-            if err := h.db.SetMasterPassword(text); err != nil {
-                return err
-            }
-            h.authStates[chatID] = UserAuthInfo{State: StateNone}
-            return h.client.SendMessageWithKeyboard(chatID, SetPasswordSuccessMessage, h.createInitialKeyboard())
+		case StateAwaitingNewPassword:
+			// Сохраняем общий пароль для всех пользователей
+			if err := h.db.SetMasterPassword(text); err != nil {
+				return err
+			}
+			h.authStates[chatID] = UserAuthInfo{State: StateNone}
+			return h.client.SendMessageWithKeyboard(chatID, SetPasswordSuccessMessage, h.createInitialKeyboard())
 
-        case StateAwaitingUsername:
-            authInfo.Username = text
-            authInfo.State = StateAwaitingPassword
-            h.authStates[chatID] = authInfo
-            return h.client.SendMessage(chatID, AskPasswordMessage)
+		case StateAwaitingUsername:
+			authInfo.Username = text
+			authInfo.State = StateAwaitingPassword
+			h.authStates[chatID] = authInfo
+			return h.client.SendMessage(chatID, AskPasswordMessage)
 
-        case StateAwaitingPassword:
-            // Проверяем пароль напрямую с мастер-паролем
-            masterPass, err := h.db.GetMasterPassword()
-            if err != nil {
-                return err
-            }
-            if text != masterPass {
-                h.authStates[chatID] = UserAuthInfo{State: StateNone}
-                return h.client.SendMessageWithKeyboard(chatID, LoginFailMessage, h.createInitialKeyboard())
-            }
-            return h.handleLoginComplete(chatID, authInfo.Username, text)
-        }
-        return nil
-    }
+		case StateAwaitingPassword:
+			// Проверяем пароль напрямую с мастер-паролем
+			masterPass, err := h.db.GetMasterPassword()
+			if err != nil {
+				return err
+			}
+			if text != masterPass {
+				h.authStates[chatID] = UserAuthInfo{State: StateNone}
+				return h.client.SendMessageWithKeyboard(chatID, LoginFailMessage, h.createInitialKeyboard())
+			}
+			return h.handleLoginComplete(chatID, authInfo.Username, text)
+		}
+		return nil
+	}
 
 	// Обработка ввода данных профиля для авторизованных пользователей
 	switch authInfo.State {
 	case StateAwaitingPosition:
 		if text != PositionForward && text != PositionDefender && text != PositionGoalie {
-            return h.client.SendMessageWithKeyboard(chatID, "Пожалуйста, выберите позицию из предложенных", CreatePositionKeyboard())
-        }
-        authInfo.Position = text
-        authInfo.State = StateAwaitingBirthday
-        h.authStates[chatID] = authInfo
-        return h.client.SendMessage(chatID, AskBirthdayMessage)
+			return h.client.SendMessageWithKeyboard(chatID, "Пожалуйста, выберите позицию из предложенных", CreatePositionKeyboard())
+		}
+		authInfo.Position = text
+		authInfo.State = StateAwaitingBirthday
+		h.authStates[chatID] = authInfo
+		return h.client.SendMessage(chatID, AskBirthdayMessage)
 
 	case StateAwaitingBirthday:
 		authInfo.Birthday = text
@@ -299,12 +309,25 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 		h.authStates[chatID] = authInfo
 		return h.client.SendMessageWithKeyboard(chatID, ProfileSetupComplete, h.keyboard)
 	case StateAwaitingNewPassword:
-        if err := h.db.SetUserPassword(authInfo.Username, text); err != nil {
-            return err
-        }
-        authInfo.State = StateAuthenticated
-        h.authStates[chatID] = authInfo
-        return h.client.SendMessage(chatID, PasswordSetSuccessMessage)
+		if err := h.db.SetUserPassword(authInfo.Username, text); err != nil {
+			return err
+		}
+		authInfo.State = StateAuthenticated
+		h.authStates[chatID] = authInfo
+		return h.client.SendMessage(chatID, PasswordSetSuccessMessage)
+	case StateAwaitingPaymentAmount:
+		amount, err := strconv.ParseFloat(text, 64)
+		if err != nil || amount <= 0 {
+			return h.client.SendMessage(chatID, InvalidAmountMessage)
+		}
+		authInfo.PaymentAmount = amount
+		authInfo.State = StateAwaitingPaymentConfirmation
+		h.authStates[chatID] = authInfo
+		return h.client.SendMessageWithKeyboard(
+			chatID,
+			fmt.Sprintf(PaymentDetailsMessage+"\nСумма: %.2f руб.", amount),
+			h.processKeyboard,
+		)
 	}
 
 	// Основная логика обработки команд для авторизованных пользователей
@@ -313,11 +336,11 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 		return h.client.SendMessageWithKeyboard(update.Message.Chat.ID, WelcomeMessage, h.keyboard)
 	case "Мой баланс":
 		session, err := h.db.GetUserSession(chatID)
-        if err != nil {
-            return err
-        }
-        return h.client.SendMessage(update.Message.Chat.ID, 
-            fmt.Sprintf("Ваш текущий баланс: %.2f ", session.Balance))
+		if err != nil {
+			return err
+		}
+		return h.client.SendMessage(update.Message.Chat.ID,
+			fmt.Sprintf("Ваш текущий баланс: %.2f ", session.Balance))
 	case "Способ оплаты":
 		return h.client.SendMessageWithKeyboard(update.Message.Chat.ID, PaymentMessage, h.paymentKeyboard)
 	case "Мой аккаунт":
@@ -325,14 +348,14 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 		if err != nil {
 			return err
 		}
-		
+
 		if session.Position == "" || session.Birthday == "" || session.Number == "" {
 			authInfo.State = StateAwaitingPosition
 			authInfo.Username = session.Username
 			h.authStates[chatID] = authInfo
 			return h.client.SendMessageWithKeyboard(chatID, AskPositionMessage, CreatePositionKeyboard())
 		}
-		
+
 		return h.client.SendMessage(chatID, fmt.Sprintf(
 			"Ваш аккаунт:\nИмя: %s\nПозиция: %s\nДата рождения: %s\nИгровой номер: %s",
 			session.Username, session.Position, session.Birthday, session.Number))
@@ -341,10 +364,10 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 		return h.client.SendMessageWithKeyboard(update.Message.Chat.ID, "Выберите раздел:", h.teamKeyboard)
 	case "Состав":
 		message, err := h.getTeamRosterMessage()
-        if err != nil {
-            return err
-        }
-        return h.client.SendMessageWithKeyboard(update.Message.Chat.ID, message, h.teamKeyboard)
+		if err != nil {
+			return err
+		}
+		return h.client.SendMessageWithKeyboard(update.Message.Chat.ID, message, h.teamKeyboard)
 	case "1":
 		return h.client.SendMessageWithKeyboard(update.Message.Chat.ID, PaymentOption1, h.processKeyboard)
 	case "2":
@@ -364,33 +387,62 @@ func (h *Handler) HandleUpdate(update telegram.Update) error {
 	case "Выйти":
 		return h.logout(update.Message.Chat.ID)
 	case "/setpassword":
-        if (!h.isAuthenticated(chatID)) {
-            return h.client.SendMessage(chatID, "Сначала войдите в систему")
-        }
-        authInfo.State = StateAwaitingNewPassword
-        h.authStates[chatID] = authInfo
-        return h.client.SendMessage(chatID, PasswordSetMessage)
+		if !h.isAuthenticated(chatID) {
+			return h.client.SendMessage(chatID, "Сначала войдите в систему")
+		}
+		authInfo.State = StateAwaitingNewPassword
+		h.authStates[chatID] = authInfo
+		return h.client.SendMessage(chatID, PasswordSetMessage)
+	case "Пополнить баланс":
+		authInfo.State = StateAwaitingPaymentAmount
+		h.authStates[chatID] = authInfo
+		return h.client.SendMessage(chatID, EnterAmountMessage)
+
+	case "Подтвердить оплату":
+		if authInfo.State != StateAwaitingPaymentConfirmation {
+			return h.client.SendMessage(chatID, "Сначала введите сумму для оплаты")
+		}
+		// Добавляем сумму к текущему балансу пользователя
+		session, err := h.db.GetUserSession(chatID)
+		if err != nil {
+			return err
+		}
+		newBalance := session.Balance + authInfo.PaymentAmount
+		if err := h.db.UpdateBalance(chatID, newBalance); err != nil {
+			return err
+		}
+		authInfo.State = StateAuthenticated
+		h.authStates[chatID] = authInfo
+		return h.client.SendMessageWithKeyboard(chatID,
+			fmt.Sprintf("Баланс успешно пополнен на %.2f руб. Новый баланс: %.2f руб.",
+				authInfo.PaymentAmount, newBalance),
+			h.keyboard)
+
+	case "Отменить":
+		authInfo.State = StateAuthenticated
+		h.authStates[chatID] = authInfo
+		return h.client.SendMessageWithKeyboard(chatID, "Оплата отменена", h.keyboard)
 	default:
 		return nil
 	}
 }
 
 func (h *Handler) handleLoginComplete(chatID int64, username, password string) error {
-    h.authMu.Lock()
-    h.authenticatedUsers[chatID] = username
-    h.authMu.Unlock()
+	h.authMu.Lock()
+	h.authenticatedUsers[chatID] = username
+	h.authMu.Unlock()
 
-    // Сохраняем сессию
-    if err := h.db.SaveUserSession(chatID, username, "", "", "", 0.0); err != nil {
-        log.Printf("Error saving user session: %v", err)
-    }
+	// Сохраняем сессию
+	if err := h.db.SaveUserSession(chatID, username, "", "", "", 0.0); err != nil {
+		log.Printf("Error saving user session: %v", err)
+	}
 
-    h.authStates[chatID] = UserAuthInfo{
-        State: StateAuthenticated,
-        Username: username,
-    }
-    
-    return h.client.SendMessageWithKeyboard(chatID, LoginSuccessMessage, h.keyboard)
+	h.authStates[chatID] = UserAuthInfo{
+		State:    StateAuthenticated,
+		Username: username,
+	}
+
+	return h.client.SendMessageWithKeyboard(chatID, LoginSuccessMessage, h.keyboard)
 }
 
 func (h *Handler) logout(chatID int64) error {

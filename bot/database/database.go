@@ -48,6 +48,14 @@ func NewDatabase(dbPath string) (*Database, error) {
             password TEXT NOT NULL,
             created_at DATETIME NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS payment_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME NOT NULL
+        );
     `)
     if err != nil {
         return nil, err
@@ -181,6 +189,14 @@ func (d *Database) GetMasterPassword() (string, error) {
     }
 
     return password, nil
+}
+
+func (d *Database) SavePaymentRequest(chatID int64, amount float64) error {
+    _, err := d.db.Exec(`
+        INSERT INTO payment_requests (chat_id, amount, created_at)
+        VALUES (?, ?, ?)
+    `, chatID, amount, time.Now())
+    return err
 }
 
 func (d *Database) Close() error {

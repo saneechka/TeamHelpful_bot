@@ -66,7 +66,7 @@ Telegram-бот для управления финансами футбольн�
 1. Клонируйте репозиторий:
 ```bash
 git clone https://github.com/saneechka/teamHelpful.git
-cd FootballFund
+cd teamHelpfulBot
 ```
 
 2. Введите API токен,полученный из FatherBot:

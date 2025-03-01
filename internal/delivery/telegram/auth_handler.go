@@ -344,3 +344,35 @@ func (h *AuthHandler) HandleLogout(message *tgbotapi.Message) error {
 	keyboard := h.client.GetLoginKeyboard()
 	return h.client.SendMessageWithKeyboard(message.Chat.ID, "Вы вышли из системы. Для продолжения работы необходимо авторизоваться:", keyboard)
 }
+
+// HandleToken обрабатывает авторизацию по JWT токену
+func (h *AuthHandler) HandleToken(message *tgbotapi.Message) error {
+	// Получаем токен из сообщения
+	token := message.Text
+	if token == "" {
+		return h.client.SendMessage(message.Chat.ID, "Токен не может быть пустым. Попробуйте еще раз:")
+	}
+
+	// Проверяем токен и обновляем сессию
+	err := h.sessionService.ValidateToken(message.Chat.ID, token)
+	if err != nil {
+		// Если произошла ошибка валидации токена, сбрасываем состояние и предлагаем выбрать действие
+		session, _ := h.sessionService.GetSession(message.Chat.ID)
+		if session != nil {
+			session.State = domain.StateNone
+			session.LastCommand = ""
+			h.sessionService.UpdateSession(message.Chat.ID, session)
+		}
+		keyboard := h.client.GetLoginKeyboard()
+		return h.client.SendMessageWithKeyboard(message.Chat.ID, fmt.Sprintf("Ошибка валидации токена: %s. Выберите действие:", err.Error()), keyboard)
+	}
+
+	// Показываем главное меню
+	isAdmin, err := h.sessionService.IsAdmin(message.Chat.ID)
+	if err != nil {
+		return err
+	}
+
+	keyboard := h.client.GetMainMenuKeyboard(isAdmin)
+	return h.client.SendMessageWithKeyboard(message.Chat.ID, "Вы успешно авторизованы по токену! Выберите действие:", keyboard)
+}

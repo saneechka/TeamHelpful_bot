@@ -42,7 +42,7 @@ func main() {
 
 	// Инициализируем сервисы
 	userService := service.NewUserService(repos.UserRepository)
-	authService := service.NewAuthService(repos.UserRepository)
+	authService := service.NewAuthService(repos.UserRepository, cfg)
 	sessionService := service.NewSessionService(userService, authService)
 	paymentService := service.NewPaymentService(repos.PaymentRepository, userService)
 

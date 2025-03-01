@@ -37,6 +37,7 @@ type UserSession struct {
 	PaymentAmount float64
 	IsAuthorized  bool
 	LastCommand   string // Последняя команда пользователя (login/register)
+	Token         string // JWT токен для авторизации
 }
 
 // PaymentRequest представляет запрос на пополнение баланса

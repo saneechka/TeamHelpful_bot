@@ -13,6 +13,8 @@ type Config struct {
 	PollTimeout   time.Duration
 	MessagesLimit int
 	Debug         bool
+	JWTSecret     string        // Секретный ключ для JWT токенов
+	JWTExpiration time.Duration // Время жизни JWT токена
 }
 
 // NewConfig создает новый экземпляр Config
@@ -43,11 +45,28 @@ func NewConfig() *Config {
 		}
 	}
 
+	// Получаем секретный ключ для JWT
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "your-256-bit-secret" // Значение по умолчанию, в продакшене следует использовать сложный ключ
+	}
+
+	// Устанавливаем время жизни JWT токена (по умолчанию 24 часа)
+	jwtExpiration := 24 * time.Hour
+	jwtExpirationEnv := os.Getenv("JWT_EXPIRATION")
+	if jwtExpirationEnv != "" {
+		if exp, err := strconv.Atoi(jwtExpirationEnv); err == nil {
+			jwtExpiration = time.Duration(exp) * time.Hour
+		}
+	}
+
 	return &Config{
 		TelegramToken: token,
 		DBPath:        dbPath,
 		PollTimeout:   timeout,
 		MessagesLimit: 100,
 		Debug:         debug,
+		JWTSecret:     jwtSecret,
+		JWTExpiration: jwtExpiration,
 	}
 }

@@ -2,21 +2,39 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
+	"HelpBot/internal/config"
 	"HelpBot/internal/domain"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // AuthService реализует интерфейс domain.AuthService
 type AuthService struct {
 	userRepo domain.UserRepository
+	config   *config.Config
 }
 
 // NewAuthService создает новый экземпляр AuthService
-func NewAuthService(userRepo domain.UserRepository) *AuthService {
+func NewAuthService(userRepo domain.UserRepository, cfg *config.Config) *AuthService {
 	return &AuthService{
 		userRepo: userRepo,
+		config:   cfg,
 	}
+}
+
+// hashPassword хеширует пароль с использованием bcrypt
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+// checkPasswordHash проверяет, соответствует ли пароль хешу
+func checkPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 // Register регистрирует нового пользователя
@@ -29,6 +47,13 @@ func (s *AuthService) Register(user *domain.User) error {
 	if existingUser != nil {
 		return errors.New("пользователь с таким именем уже существует")
 	}
+
+	// Хешируем пароль
+	hashedPassword, err := hashPassword(user.Password)
+	if err != nil {
+		return fmt.Errorf("ошибка хеширования пароля: %w", err)
+	}
+	user.Password = hashedPassword
 
 	// Устанавливаем роль по умолчанию
 	if user.Role == "" {
@@ -51,7 +76,7 @@ func (s *AuthService) Login(username, password string) (*domain.User, error) {
 	}
 
 	// Проверяем пароль
-	if user.Password != password {
+	if !checkPasswordHash(password, user.Password) {
 		return nil, errors.New("неверный пароль")
 	}
 
@@ -76,14 +101,18 @@ func (s *AuthService) ChangePassword(chatID int64, oldPassword, newPassword stri
 	}
 
 	// Проверяем старый пароль
-	if user.Password != oldPassword {
+	if !checkPasswordHash(oldPassword, user.Password) {
 		return errors.New("неверный пароль")
 	}
 
+	// Хешируем новый пароль
+	hashedPassword, err := hashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("ошибка хеширования пароля: %w", err)
+	}
+
 	// Обновляем пароль
-	user.Password = newPassword
-	user.UpdatedAt = time.Now()
-	return s.userRepo.Save(user)
+	return s.userRepo.UpdatePassword(chatID, hashedPassword)
 }
 
 // ChangeRole изменяет роль пользователя (только для администраторов)
@@ -112,7 +141,5 @@ func (s *AuthService) ChangeRole(adminChatID int64, targetUsername string, newRo
 	}
 
 	// Обновляем роль
-	targetUser.Role = newRole
-	targetUser.UpdatedAt = time.Now()
-	return s.userRepo.Save(targetUser)
+	return s.userRepo.UpdateRole(targetUser.ChatID, newRole)
 }

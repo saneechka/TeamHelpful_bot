@@ -85,6 +85,12 @@ func (s *SessionService) Login(chatID int64, username, password string) error {
 		return err
 	}
 
+	// Генерируем JWT токен
+	token, err := s.authService.GenerateToken(user)
+	if err != nil {
+		return err
+	}
+
 	// Получаем текущую сессию
 	session, err := s.GetSession(chatID)
 	if err != nil {
@@ -94,17 +100,18 @@ func (s *SessionService) Login(chatID int64, username, password string) error {
 	// Если сессия не существует, создаем новую
 	if session == nil {
 		session = &domain.UserSession{
-			User:  user,
-			State: domain.StateNone,
+			User:         user,
+			State:        domain.StateNone,
+			IsAuthorized: true,
+			Token:        token,
 		}
 	} else {
 		// Обновляем пользователя в сессии
 		session.User = user
 		session.State = domain.StateNone
+		session.IsAuthorized = true
+		session.Token = token
 	}
-
-	// Устанавливаем флаг авторизации
-	session.IsAuthorized = true
 
 	// Сохраняем сессию
 	return s.UpdateSession(chatID, session)
@@ -130,4 +137,38 @@ func (s *SessionService) IsAdmin(chatID int64) (bool, error) {
 		return false, nil
 	}
 	return session.User.Role == domain.RoleAdmin, nil
+}
+
+// ValidateToken проверяет валидность JWT токена и обновляет сессию
+func (s *SessionService) ValidateToken(chatID int64, tokenString string) error {
+	// Проверяем токен
+	user, err := s.authService.ValidateToken(tokenString)
+	if err != nil {
+		return err
+	}
+
+	// Получаем текущую сессию
+	session, err := s.GetSession(chatID)
+	if err != nil {
+		return err
+	}
+
+	// Если сессия не существует, создаем новую
+	if session == nil {
+		session = &domain.UserSession{
+			User:         user,
+			State:        domain.StateNone,
+			IsAuthorized: true,
+			Token:        tokenString,
+		}
+	} else {
+		// Обновляем пользователя в сессии
+		session.User = user
+		session.State = domain.StateNone
+		session.IsAuthorized = true
+		session.Token = tokenString
+	}
+
+	// Сохраняем сессию
+	return s.UpdateSession(chatID, session)
 }

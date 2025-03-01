@@ -64,3 +64,14 @@ func CreatePositionKeyboard() telegram.ReplyKeyboardMarkup {
 		ResizeKeyboard: true,
 	}
 }
+
+// CreateLoginKeyboard создает клавиатуру для авторизации
+func CreateLoginKeyboard() telegram.ReplyKeyboardMarkup {
+	return telegram.ReplyKeyboardMarkup{
+		Keyboard: [][]telegram.KeyboardButton{
+			{{Text: "Войти"}},
+			{{Text: "Зарегистрироваться"}},
+		},
+		ResizeKeyboard: true,
+	}
+}

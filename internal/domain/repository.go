@@ -19,6 +19,12 @@ type UserRepository interface {
 
 	// UpdateBalance обновляет баланс пользователя
 	UpdateBalance(chatID int64, newBalance float64) error
+
+	// UpdatePassword обновляет пароль пользователя
+	UpdatePassword(chatID int64, newPassword string) error
+
+	// UpdateRole обновляет роль пользователя
+	UpdateRole(chatID int64, newRole string) error
 }
 
 // PaymentRepository определяет методы для работы с платежами

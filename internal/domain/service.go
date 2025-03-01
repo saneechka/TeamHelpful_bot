@@ -52,6 +52,9 @@ type SessionService interface {
 
 	// IsAdmin проверяет, является ли пользователь администратором
 	IsAdmin(chatID int64) (bool, error)
+
+	// ValidateToken проверяет валидность JWT токена и обновляет сессию
+	ValidateToken(chatID int64, token string) error
 }
 
 // AuthService определяет методы для авторизации пользователей
@@ -67,4 +70,10 @@ type AuthService interface {
 
 	// ChangeRole изменяет роль пользователя (только для администраторов)
 	ChangeRole(adminChatID int64, targetUsername string, newRole string) error
+
+	// GenerateToken генерирует JWT токен для пользователя
+	GenerateToken(user *User) (string, error)
+
+	// ValidateToken проверяет валидность JWT токена и возвращает пользователя
+	ValidateToken(token string) (*User, error)
 }

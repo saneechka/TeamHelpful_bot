@@ -144,4 +144,5 @@ jobs:
             fi
             
             echo 'Verification completed: Bot is running correctly!'
-          "
+          "- name: Send Telegram notification
+ 

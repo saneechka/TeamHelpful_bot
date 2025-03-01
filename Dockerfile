@@ -1,5 +1,5 @@
 # Используем многоэтапную сборку для минимизации размера образа
-FROM golang:latest
+FROM golang:1.21-alpine AS builder
 
 # Установка необходимых зависимостей
 RUN apk add --no-cache git gcc musl-dev
@@ -20,25 +20,12 @@ COPY . .
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o helpbot .
 
 # Финальный образ
-FROM alpine:latest
-
-# Установка необходимых пакетов для SQLite
-RUN apk add --no-cache ca-certificates tzdata sqlite
-
-# Создание пользователя без прав root
-RUN adduser -D -g '' appuser
+FROM alpine:3.16
 
 # Установка рабочей директории
 WORKDIR /app
 
 # Копирование бинарного файла из предыдущего этапа
-COPY --from=builder /app/helpbot .
+COPY --from=builder /app/bot .
 
-# Копирование файла базы данных, если он существует
-COPY --from=builder /app/users.db ./users.db
-
-
-USER appuser
-
-
-CMD ["./helpbot"] 
+CMD ["./bot"] 

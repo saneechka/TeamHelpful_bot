@@ -7,16 +7,22 @@ import (
 
 	"HelpBot/bot"
 	"HelpBot/client/telegram"
+
+	"github.com/joho/godotenv"
 )
 
 const (
-	pollTimeout    = 100 * time.Millisecond
-	messagesLimit  = 100
+	pollTimeout   = 100 * time.Millisecond
+	messagesLimit = 100
 )
 
 func main() {
-	// Initialize token directly, remove tgHost
-	token := "bot_token"
+	// Загрузка переменных окружения из .env файла
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found or cannot be loaded: %v", err)
+	}
+
+	token := "bot_token" // Значение по умолчанию
 	if envToken := os.Getenv("BOT_TOKEN"); envToken != "" {
 		token = envToken
 	}

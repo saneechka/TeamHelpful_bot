@@ -1,0 +1,134 @@
+name: Production Deployment
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+        
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/helpbot:latest,${{ secrets.DOCKER_USERNAME }}/helpbot:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/helpbot:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/helpbot:buildcache,mode=max
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to production server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            set -e  # Stop on error
+            
+            # Create directory if it doesn't exist
+            mkdir -p ~/telegram-bot
+            
+            # Clone or update repository
+            if [ ! -d ~/telegram-bot/.git ]; then
+              cd ~/telegram-bot
+              git clone ${{ github.server_url }}/${{ github.repository }} .
+            else
+              cd ~/telegram-bot
+              git fetch --all
+              git reset --hard origin/main
+            fi
+            
+            cd ~/telegram-bot
+            
+            # Create .env file with bot token
+            echo 'BOT_TOKEN=${{ secrets.BOT_TOKEN }}' > .env
+            echo 'DB_PATH=users.db' >> .env
+            
+            # Pull the latest image
+            docker pull ${{ secrets.DOCKER_USERNAME }}/helpbot:latest
+            
+            # Stop and remove old containers
+            docker-compose down
+            
+            # Update docker-compose to use the pulled image
+            cat > docker-compose.yml << 'EOL'
+            version: '3.8'
+
+            services:
+              helpbot:
+                image: ${{ secrets.DOCKER_USERNAME }}/helpbot:latest
+                restart: always
+                environment:
+                  - BOT_TOKEN=\${BOT_TOKEN}
+                  - DB_PATH=/app/users.db
+                volumes:
+                  - ./users.db:/app/users.db
+            EOL
+            
+            # Start Docker containers
+            docker-compose up -d
+            
+            # Check status
+            docker-compose ps
+            
+            # Output logs for diagnostics
+            echo 'Recent logs:'
+            docker-compose logs --tail=20
+            
+            echo 'Deployment completed!'
+          "
+      
+      - name: Verify deployment
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            cd ~/telegram-bot
+            
+            # Check if container is running
+            if ! docker-compose ps | grep 'Up'; then
+              echo 'Error: Bot container is not running!'
+              docker-compose logs
+              exit 1
+            fi
+            
+            echo 'Verification completed: Bot is running correctly!'
+          "
+          
+      - name: Send notification on success
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_TITLE: "✅ Successful Deployment"
+          SLACK_MESSAGE: "The Telegram bot has been successfully deployed to production"
+          SLACK_COLOR: good
+          
+      - name: Send notification on failure
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_CHANNEL: deployments
+          SLACK_TITLE: "❌ Failed Deployment"
+          SLACK_MESSAGE: "The Telegram bot deployment to production failed"
+          SLACK_COLOR: danger 

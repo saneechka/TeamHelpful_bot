@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -16,11 +17,29 @@ const (
 	messagesLimit = 100
 )
 
+// startHealthCheckServer starts a simple HTTP server for health checks
+func startHealthCheckServer() {
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+
+	go func() {
+		log.Println("Starting health check server on :8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			log.Printf("Health check server error: %v", err)
+		}
+	}()
+}
+
 func main() {
 	// Загрузка переменных окружения из .env файла
 	if err := godotenv.Load(); err != nil {
 		log.Printf("Warning: .env file not found or cannot be loaded: %v", err)
 	}
+
+	// Start health check server
+	startHealthCheckServer()
 
 	token := "bot_token" // Значение по умолчанию
 	if envToken := os.Getenv("BOT_TOKEN"); envToken != "" {

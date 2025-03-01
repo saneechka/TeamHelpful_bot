@@ -1,0 +1,49 @@
+name: Deploy Telegram Bot
+
+on:
+  push:
+    branches: [ main ]  # Измените на вашу основную ветку, если она называется иначе
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            # Проверка наличия директории
+            if [ ! -d ~/telegram-bot ]; then
+              mkdir -p ~/telegram-bot
+              cd ~/telegram-bot
+              git clone ${{ github.server_url }}/${{ github.repository }} .
+            else
+              cd ~/telegram-bot
+              git fetch --all
+              git reset --hard origin/main
+            fi
+            
+            # Создание или обновление .env файла
+            echo 'BOT_TOKEN=${{ secrets.BOT_TOKEN }}' > .env
+            
+            # Запуск Docker Compose
+            docker-compose down
+            docker-compose up -d --build
+            
+            # Проверка статуса
+            docker-compose ps
+            
+            echo 'Deployment completed successfully!'
+          "

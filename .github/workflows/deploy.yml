@@ -2,7 +2,8 @@ name: Deploy Telegram Bot
 
 on:
   push:
-    branches: [ main ]  # Измените на вашу основную ветку, если она называется иначе
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -21,12 +22,16 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
       
-      - name: Deploy to server
+      - name: Deploy with fixed docker-compose
         run: |
           ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
-            # Проверка наличия директории
-            if [ ! -d ~/telegram-bot ]; then
-              mkdir -p ~/telegram-bot
+            set -e  # Stop on error
+            
+            # Create directory if it doesn't exist
+            mkdir -p ~/telegram-bot
+            
+            # Clone or update repository
+            if [ ! -d ~/telegram-bot/.git ]; then
               cd ~/telegram-bot
               git clone ${{ github.server_url }}/${{ github.repository }} .
             else
@@ -35,15 +40,52 @@ jobs:
               git reset --hard origin/main
             fi
             
-            # Создание или обновление .env файла
+            cd ~/telegram-bot
+            
+            # Create proper docker-compose.yml
+            cat > docker-compose.yml << 'EOL'
+            version: '3.3'
+
+            services:
+              helpbot:
+                build: .
+                restart: always
+                environment:
+                  - BOT_TOKEN=\${BOT_TOKEN}
+                volumes:
+                  - ./users.db:/app/users.db
+            EOL
+            
+            # Create .env file with bot token
             echo 'BOT_TOKEN=${{ secrets.BOT_TOKEN }}' > .env
             
-            # Запуск Docker Compose
+            # Stop and remove old containers
             docker-compose down
+            
+            # Build and start Docker containers
             docker-compose up -d --build
             
-            # Проверка статуса
+            # Check status
             docker-compose ps
             
-            echo 'Deployment completed successfully!'
+            # Output logs for diagnostics
+            echo 'Recent logs:'
+            docker-compose logs
+            
+            echo 'Deployment completed!'
+          "
+      
+      - name: Verify deployment
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            cd ~/telegram-bot
+            
+            # Check if container is running
+            if ! docker-compose ps | grep 'Up'; then
+              echo 'Error: Bot container is not running!'
+              docker-compose logs
+              exit 1
+            fi
+            
+            echo 'Verification completed: Bot is running correctly!'
           "

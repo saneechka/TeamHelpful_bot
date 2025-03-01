@@ -1,0 +1,76 @@
+name: Deploy Telegram Bot Without Docker
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # For manual triggering
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build application
+        run: CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o helpbot .
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to server
+        run: |
+          # Create deployment directory on the server
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "mkdir -p ~/telegram-bot"
+          
+          # Copy the binary and necessary files
+          scp helpbot ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/telegram-bot/
+          scp .env ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/telegram-bot/ || echo "No .env file to copy"
+          scp users.db ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:~/telegram-bot/ || echo "No users.db file to copy"
+          
+          # Create .env file with bot token on the server
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "echo 'BOT_TOKEN=${{ secrets.BOT_TOKEN }}' > ~/telegram-bot/.env"
+          
+          # Create systemd service file
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "cat > /tmp/telegram-bot.service << 'EOL'
+[Unit]
+Description=Telegram Bot Service
+After=network.target
+
+[Service]
+Type=simple
+User=${{ secrets.SSH_USERNAME }}
+WorkingDirectory=/home/${{ secrets.SSH_USERNAME }}/telegram-bot
+ExecStart=/home/${{ secrets.SSH_USERNAME }}/telegram-bot/helpbot
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOL"
+
+          # Install and start the service
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            sudo mv /tmp/telegram-bot.service /etc/systemd/system/
+            sudo systemctl daemon-reload
+            sudo systemctl enable telegram-bot.service
+            sudo systemctl restart telegram-bot.service
+            sudo systemctl status telegram-bot.service
+          " 

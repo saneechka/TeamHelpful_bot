@@ -9,8 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+     
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.8.0
@@ -51,7 +50,7 @@ jobs:
                 build: .
                 restart: always
                 environment:
-                  - BOT_TOKEN=\${BOT_TOKEN}
+                  - BOT_TOKEN=${BOT_TOKEN}
                 volumes:
                   - ./users.db:/app/users.db
             EOL

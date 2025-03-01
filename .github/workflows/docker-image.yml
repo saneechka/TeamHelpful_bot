@@ -1,0 +1,147 @@
+name: Build and Deploy Telegram Bot
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Для возможности ручного запуска
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Логин в GitHub Container Registry
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Настройка Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Извлечение метаданных для Docker
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=short
+            type=ref,event=branch
+            latest
+
+      # Сборка и публикация Docker образа
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Настройка SSH для деплоя
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      # Создание docker-compose.yml на сервере
+      - name: Create docker-compose.yml on server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            mkdir -p ~/telegram-bot
+            cat > ~/telegram-bot/docker-compose.yml << 'EOL'
+            version: '3.8'
+
+            services:
+              helpbot:
+                image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+                restart: always
+                environment:
+                  - BOT_TOKEN=\${BOT_TOKEN}
+                volumes:
+                  - ./users.db:/app/users.db
+                  - ./logs:/app/logs
+            EOL
+          "
+
+      # Создание .env файла на сервере
+      - name: Create .env file on server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            echo 'BOT_TOKEN=${{ secrets.BOT_TOKEN }}' > ~/telegram-bot/.env
+          "
+
+      # Настройка GitHub Container Registry на сервере
+      - name: Setup GHCR on server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+     
+            echo '${{ secrets.GITHUB_TOKEN }}' > ~/telegram-bot/ghcr-token.txt
+            
+           
+            cat ~/telegram-bot/ghcr-token.txt | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Удаление файла с токеном после использования
+            rm ~/telegram-bot/ghcr-token.txt
+          "
+
+      
+      - name: Deploy to server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            cd ~/telegram-bot
+            
+  
+            docker-compose down
+            
+            # Удаление старых образов для экономии места
+            docker image prune -af
+            
+            # Загрузка нового образа
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            
+            # Запуск контейнеров
+            docker-compose up -d
+            
+            # Проверка статуса
+            docker-compose ps
+            
+            echo 'Deployment completed successfully!'
+          "
+
+      # Проверка деплоя
+      - name: Verify deployment
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            cd ~/telegram-bot
+            
+            # Проверка, что контейнер запущен
+            if ! docker-compose ps | grep 'Up'; then
+              echo 'Error: Bot container is not running!'
+              docker-compose logs
+              exit 1
+            fi
+            
+            echo 'Verification completed: Bot is running correctly!'
+          "

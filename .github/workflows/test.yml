@@ -1,0 +1,66 @@
+name: Deploy Telegram Bot without Docker Compose
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy using Docker
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            set -e  # Остановка при ошибке
+            
+            # Создание директории, если она не существует
+            mkdir -p ~/telegram-bot
+            
+            # Клонирование или обновление репозитория
+            if [ ! -d ~/telegram-bot/.git ]; then
+              cd ~/telegram-bot
+              git clone ${{ github.server_url }}/${{ github.repository }} .
+            else
+              cd ~/telegram-bot
+              git fetch --all
+              git reset --hard origin/main
+            fi
+            
+            cd ~/telegram-bot
+            
+            # Остановка и удаление старого контейнера
+            docker stop telegram-bot || true
+            docker rm telegram-bot || true
+            
+            # Сборка нового образа
+            docker build -t telegram-bot .
+            
+            # Запуск нового контейнера
+            docker run -d --name telegram-bot \
+              -e BOT_TOKEN='${{ secrets.BOT_TOKEN }}' \
+              -v \$(pwd)/users.db:/app/users.db \
+              --restart always \
+              telegram-bot
+            
+            # Проверка статуса
+            docker ps | grep telegram-bot
+            
+            # Вывод логов для диагностики
+            docker logs telegram-bot
+            
+            echo 'Deployment completed!'
+          "

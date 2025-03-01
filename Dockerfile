@@ -1,31 +1,38 @@
-# Используем многоэтапную сборку для минимизации размера образа
+# Multi-stage build for minimal image size
 FROM golang:1.21-alpine AS builder
 
-# Установка необходимых зависимостей
+# Install necessary dependencies
 RUN apk add --no-cache git gcc musl-dev
 
-# Установка рабочей директории
+# Set working directory
 WORKDIR /app
 
-# Копирование файлов go.mod и go.sum
+# Copy go.mod and go.sum files
 COPY go.mod go.sum ./
 
-# Загрузка зависимостей
+# Download dependencies
 RUN go mod download
 
-# Копирование исходного кода
+# Copy source code
 COPY . .
 
-# Сборка приложения
+# Build the application
 RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o helpbot .
 
-# Финальный образ
+# Final image
 FROM alpine:3.16
 
-# Установка рабочей директории
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates
+
+# Set working directory
 WORKDIR /app
 
-# Копирование бинарного файла из предыдущего этапа
-COPY --from=builder /app/bot .
+# Copy binary from builder stage
+COPY --from=builder /app/helpbot .
 
-CMD ["./bot"] 
+# Copy any necessary files
+COPY --from=builder /app/users.db ./users.db
+
+# Run the application
+CMD ["./helpbot"] 

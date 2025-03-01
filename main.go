@@ -16,7 +16,7 @@ const (
 
 func main() {
 	// Initialize token directly, remove tgHost
-	token := "7828331860:AAG_XkEaE2vY4EKdGZaOJ9xD74D1fVV0U_k"
+	token := "bot_token"
 	if envToken := os.Getenv("BOT_TOKEN"); envToken != "" {
 		token = envToken
 	}

@@ -1,0 +1,98 @@
+name: Deploy Telegram Bot
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Для ручного запуска
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to server
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            set -e  # Остановка при ошибке
+            
+            # Создание директории, если она не существует
+            mkdir -p ~/telegram-bot
+            
+            # Клонирование или обновление репозитория
+            if [ ! -d ~/telegram-bot/.git ]; then
+              cd ~/telegram-bot
+              git clone ${{ github.server_url }}/${{ github.repository }} .
+            else
+              cd ~/telegram-bot
+              git fetch --all
+              git reset --hard origin/main
+            fi
+            
+            # Создание .env файла с токеном бота
+            echo 'BOT_TOKEN=${{ secrets.BOT_TOKEN }}' > ~/telegram-bot/.env
+            
+            # Создание простого docker-compose.yml, если его нет
+            if [ ! -f ~/telegram-bot/docker-compose.yml ]; then
+              cat > ~/telegram-bot/docker-compose.yml << 'EOL'
+              version: '3.8'
+
+              services:
+                bot:
+                  build: .
+                  restart: always
+                  environment:
+                    - BOT_TOKEN=${BOT_TOKEN}
+                  volumes:
+                    - ./data:/app/data
+              EOL
+            fi
+            
+            # Создание директории для данных
+            mkdir -p ~/telegram-bot/data
+            
+            # Остановка и удаление старых контейнеров
+            cd ~/telegram-bot
+            docker-compose down
+            
+            # Удаление старых образов для экономии места
+            docker image prune -f
+            
+            # Сборка и запуск Docker контейнеров
+            docker-compose up -d --build
+            
+            # Проверка статуса
+            docker-compose ps
+            
+            # Вывод логов для диагностики (последние 20 строк)
+            echo 'Recent logs:'
+            docker-compose logs --tail=20
+            
+            echo 'Deployment completed successfully!'
+          "
+      
+      - name: Verify deployment
+        run: |
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
+            cd ~/telegram-bot
+            
+            # Проверка, что контейнер запущен
+            if ! docker-compose ps | grep 'Up'; then
+              echo 'Error: Bot container is not running!'
+              docker-compose logs
+              exit 1
+            fi
+            
+            echo 'Verification completed: Bot is running correctly!'
+          "

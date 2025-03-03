@@ -18,7 +18,7 @@ func main() {
 	// Инициализируем конфигурацию
 	cfg := config.NewConfig()
 
-	// Настраиваем логирование
+	
 	if cfg.Debug {
 		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 		log.Println("Debug mode enabled")
@@ -35,16 +35,14 @@ func main() {
 
 	// Инициализируем репозитории
 	userRepo := sqlite.NewUserRepository(db)
-	paymentRepo := sqlite.NewPaymentRepository(db)
 
 	// Создаем репозитории
-	repos := repository.NewRepositories(userRepo, paymentRepo)
+	repos := repository.NewRepositories(userRepo)
 
 	// Инициализируем сервисы
 	userService := service.NewUserService(repos.UserRepository)
 	authService := service.NewAuthService(repos.UserRepository, cfg)
 	sessionService := service.NewSessionService(userService, authService)
-	paymentService := service.NewPaymentService(repos.PaymentRepository, userService)
 
 	// Инициализируем клиент Telegram
 	client, err := tgclient.NewClient(cfg.TelegramToken, cfg.PollTimeout, cfg.MessagesLimit)
@@ -53,7 +51,7 @@ func main() {
 	}
 
 	// Инициализируем обработчик
-	handler := tgdelivery.NewHandler(client, userService, paymentService, sessionService)
+	handler := tgdelivery.NewHandler(client, userService, sessionService)
 
 	log.Printf("Bot started with poll timeout: %v", cfg.PollTimeout)
 

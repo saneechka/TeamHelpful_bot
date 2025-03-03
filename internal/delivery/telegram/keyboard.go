@@ -1,16 +1,35 @@
 package telegram
 
 import (
-	"HelpBot/client/telegram"
-	"HelpBot/internal/domain"
+	telegram "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 // CreateMainKeyboard создает основную клавиатуру
 func CreateMainKeyboard() telegram.ReplyKeyboardMarkup {
 	return telegram.ReplyKeyboardMarkup{
 		Keyboard: [][]telegram.KeyboardButton{
-			{{Text: "Мой баланс"}, {Text: "Способ оплаты"}, {Text: "Мой аккаунт"}},
-			{{Text: "Информация о команде"}},
+			{{Text: "Войти"}},
+			{{Text: "Зарегистрироваться"}},
+		},
+		ResizeKeyboard: true,
+	}
+}
+
+// CreateAuthenticatedKeyboard создает клавиатуру для авторизованного пользователя
+func CreateAuthenticatedKeyboard() telegram.ReplyKeyboardMarkup {
+	return telegram.ReplyKeyboardMarkup{
+		Keyboard: [][]telegram.KeyboardButton{
+			{{Text: "Выйти"}},
+		},
+		ResizeKeyboard: true,
+	}
+}
+
+// CreateCancelKeyboard создает клавиатуру с кнопкой отмены
+func CreateCancelKeyboard() telegram.ReplyKeyboardMarkup {
+	return telegram.ReplyKeyboardMarkup{
+		Keyboard: [][]telegram.KeyboardButton{
+			{{Text: "Отмена"}},
 		},
 		ResizeKeyboard: true,
 	}
@@ -47,19 +66,6 @@ func CreateTeamKeyboard() telegram.ReplyKeyboardMarkup {
 		Keyboard: [][]telegram.KeyboardButton{
 			{{Text: "Состав"}},
 			{{Text: "Назад"}},
-		},
-		ResizeKeyboard: true,
-	}
-}
-
-// CreatePositionKeyboard создает клавиатуру для выбора позиции
-func CreatePositionKeyboard() telegram.ReplyKeyboardMarkup {
-	return telegram.ReplyKeyboardMarkup{
-		Keyboard: [][]telegram.KeyboardButton{
-			{{Text: domain.PositionForward}},
-			{{Text: domain.PositionDefender}},
-			{{Text: domain.PositionGoalie}},
-			{{Text: "Отмена"}},
 		},
 		ResizeKeyboard: true,
 	}

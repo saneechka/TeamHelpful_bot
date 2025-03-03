@@ -29,36 +29,17 @@ func NewDB(dbPath string) (*sql.DB, error) {
 func createTables(db *sql.DB) error {
 	// Создаем таблицу пользователей с полями для авторизации
 	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS user_sessions (
+		CREATE TABLE IF NOT EXISTS users (
 			chat_id INTEGER PRIMARY KEY,
-			username TEXT,
-			password TEXT,
+			username TEXT UNIQUE NOT NULL,
+			password TEXT NOT NULL,
 			role TEXT DEFAULT 'user',
-			position TEXT,
-			birthday TEXT,
-			number TEXT,
-			balance REAL DEFAULT 0,
-			login_time TIMESTAMP
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
-		log.Printf("Error creating user_sessions table: %v", err)
-		return err
-	}
-
-	// Создаем таблицу платежей
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS payments (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			chat_id INTEGER,
-			amount REAL,
-			status TEXT,
-			created_at TIMESTAMP,
-			FOREIGN KEY (chat_id) REFERENCES user_sessions (chat_id)
-		)
-	`)
-	if err != nil {
-		log.Printf("Error creating payments table: %v", err)
+		log.Printf("Error creating users table: %v", err)
 		return err
 	}
 

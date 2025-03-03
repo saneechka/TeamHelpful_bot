@@ -132,9 +132,12 @@ func (c *Client) GetUserFromMessage(message *tgbotapi.Message) *domain.User {
 		return nil
 	}
 
+	// Генерируем уникальное имя пользователя, добавляя chat_id
+	username := fmt.Sprintf("%s_%d", message.From.UserName, message.Chat.ID)
+
 	return &domain.User{
 		ChatID:    message.Chat.ID,
-		Username:  message.From.UserName,
+		Username:  username,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

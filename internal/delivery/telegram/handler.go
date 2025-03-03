@@ -13,57 +13,26 @@ import (
 
 // Handler обрабатывает сообщения от Telegram
 type Handler struct {
-	client          *telegram.Client
-	userService     domain.UserService
-	paymentService  domain.PaymentService
-	sessionService  domain.SessionService
-	keyboard        telegram.ReplyKeyboardMarkup
-	paymentKeyboard telegram.ReplyKeyboardMarkup
-	processKeyboard telegram.ReplyKeyboardMarkup
-	teamKeyboard    telegram.ReplyKeyboardMarkup
-	processingUsers map[int64]bool
-	mu              sync.RWMutex
-	authHandler     *AuthHandler
+	client         *telegram.Client
+	userService    domain.UserService
+	sessionService domain.SessionService
+	authHandler    *AuthHandler
+	mu             sync.RWMutex
 }
 
 // NewHandler создает новый экземпляр Handler
 func NewHandler(
 	client *telegram.Client,
 	userService domain.UserService,
-	paymentService domain.PaymentService,
 	sessionService domain.SessionService,
 ) *Handler {
 	authHandler := NewAuthHandler(client, sessionService, userService)
 
 	return &Handler{
-		client:          client,
-		userService:     userService,
-		paymentService:  paymentService,
-		sessionService:  sessionService,
-		keyboard:        CreateMainKeyboard(),
-		paymentKeyboard: CreatePaymentKeyboard(),
-		processKeyboard: CreatePaymentProcessKeyboard(),
-		teamKeyboard:    CreateTeamKeyboard(),
-		processingUsers: make(map[int64]bool),
-		authHandler:     authHandler,
-	}
-}
-
-// isProcessingPayment проверяет, обрабатывается ли платеж для пользователя
-func (h *Handler) isProcessingPayment(userID int64) bool {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	return h.processingUsers[userID]
-}
-
-// setProcessingPayment устанавливает статус обработки платежа для пользователя
-func (h *Handler) setProcessingPayment(userID int64, status bool) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if status {
-		h.processingUsers[userID] = true
-	} else {
-		delete(h.processingUsers, userID)
+		client:         client,
+		userService:    userService,
+		sessionService: sessionService,
+		authHandler:    authHandler,
 	}
 }
 
@@ -223,18 +192,12 @@ func (h *Handler) handleMessage(message *tgbotapi.Message, session *domain.UserS
 			err = h.authHandler.HandleLogout(message)
 		case "Мой профиль":
 			// Здесь будет обработка профиля пользователя
-			err = h.client.SendMessage(message.Chat.ID, "Функция просмотра профиля в разработке.")
+			err = h.client.SendMessage(message.Chat.ID, "Функция просмотра профиля  находится в разработке.")
 		case "Пополнить баланс":
-			// Здесь будет обработка пополнения баланса
-			err = h.client.SendMessage(message.Chat.ID, "Функция пополнения баланса в разработке.")
-		case "Список пользователей":
-			// Здесь будет обработка списка пользователей
-			err = h.client.SendMessage(message.Chat.ID, "Функция просмотра списка пользователей в разработке.")
-		case "Управление пользователями":
-			// Здесь будет обработка управления пользователями
-			err = h.client.SendMessage(message.Chat.ID, "Функция управления пользователями в разработке.")
+			// Получаем список пользователей
+			err = h.client.SendMessage(message.Chat.ID, "Функция пополнения баланса находится в разработке.")
 		default:
-			// Здесь будет обработка других команд
+			
 			err = h.client.SendMessage(message.Chat.ID, "Неизвестная команда. Используйте кнопки для навигации.")
 		}
 	}

@@ -11,13 +11,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// AuthService реализует интерфейс domain.AuthService
+
 type AuthService struct {
 	userRepo domain.UserRepository
 	config   *config.Config
 }
 
-// NewAuthService создает новый экземпляр AuthService
+
 func NewAuthService(userRepo domain.UserRepository, cfg *config.Config) *AuthService {
 	return &AuthService{
 		userRepo: userRepo,
@@ -25,13 +25,13 @@ func NewAuthService(userRepo domain.UserRepository, cfg *config.Config) *AuthSer
 	}
 }
 
-// hashPassword хеширует пароль с использованием bcrypt
+
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
 }
 
-// checkPasswordHash проверяет, соответствует ли пароль хешу
+
 func checkPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil

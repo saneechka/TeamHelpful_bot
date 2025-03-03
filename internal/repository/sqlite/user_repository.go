@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"HelpBot/internal/domain"
@@ -25,10 +26,9 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 func (r *UserRepository) GetByID(chatID int64) (*domain.User, error) {
 	var user domain.User
 	err := r.db.QueryRow(`
-		SELECT chat_id, username, password, role, position, birthday, number, balance, login_time, login_time
-		FROM user_sessions 
-		WHERE chat_id = ?
-	`, chatID).Scan(
+		SELECT chat_id, username, password, role, position, birthday, number, created_at, updated_at 
+		FROM users 
+		WHERE chat_id = ?`, chatID).Scan(
 		&user.ChatID,
 		&user.Username,
 		&user.Password,
@@ -36,11 +36,9 @@ func (r *UserRepository) GetByID(chatID int64) (*domain.User, error) {
 		&user.Position,
 		&user.Birthday,
 		&user.Number,
-		&user.Balance,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
-
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -54,10 +52,9 @@ func (r *UserRepository) GetByID(chatID int64) (*domain.User, error) {
 func (r *UserRepository) GetByUsername(username string) (*domain.User, error) {
 	var user domain.User
 	err := r.db.QueryRow(`
-		SELECT chat_id, username, password, role, position, birthday, number, balance, login_time, login_time
-		FROM user_sessions 
-		WHERE username = ?
-	`, username).Scan(
+		SELECT chat_id, username, password, role, position, birthday, number, created_at, updated_at 
+		FROM users 
+		WHERE username = ?`, username).Scan(
 		&user.ChatID,
 		&user.Username,
 		&user.Password,
@@ -65,11 +62,9 @@ func (r *UserRepository) GetByUsername(username string) (*domain.User, error) {
 		&user.Position,
 		&user.Birthday,
 		&user.Number,
-		&user.Balance,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
-
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -79,19 +74,12 @@ func (r *UserRepository) GetByUsername(username string) (*domain.User, error) {
 	return &user, nil
 }
 
-// Save сохраняет или обновляет пользователя
+// Save сохраняет нового пользователя
 func (r *UserRepository) Save(user *domain.User) error {
-	now := time.Now()
-	if user.CreatedAt.IsZero() {
-		user.CreatedAt = now
-	}
-	user.UpdatedAt = now
-
+	// Создаем нового пользователя
 	_, err := r.db.Exec(`
-		INSERT OR REPLACE INTO user_sessions (
-			chat_id, username, password, role, position, birthday, number, balance, login_time
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`,
+		INSERT INTO users (chat_id, username, password, role, position, birthday, number, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		user.ChatID,
 		user.Username,
 		user.Password,
@@ -99,24 +87,44 @@ func (r *UserRepository) Save(user *domain.User) error {
 		user.Position,
 		user.Birthday,
 		user.Number,
-		user.Balance,
-		user.CreatedAt,
+		time.Now(),
+		time.Now(),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to save user: %w", err)
+	}
+	return nil
 }
 
 // Delete удаляет пользователя
 func (r *UserRepository) Delete(chatID int64) error {
-	_, err := r.db.Exec(`DELETE FROM user_sessions WHERE chat_id = ?`, chatID)
+	_, err := r.db.Exec("DELETE FROM users WHERE chat_id = ?", chatID)
+	return err
+}
+
+// UpdatePassword обновляет пароль пользователя
+func (r *UserRepository) UpdatePassword(chatID int64, newPassword string) error {
+	_, err := r.db.Exec(`
+		UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP 
+		WHERE chat_id = ?
+	`, newPassword, chatID)
+	return err
+}
+
+// UpdateRole обновляет роль пользователя
+func (r *UserRepository) UpdateRole(chatID int64, newRole string) error {
+	_, err := r.db.Exec(`
+		UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP 
+		WHERE chat_id = ?
+	`, newRole, chatID)
 	return err
 }
 
 // GetAll возвращает всех пользователей
 func (r *UserRepository) GetAll() ([]*domain.User, error) {
 	rows, err := r.db.Query(`
-		SELECT chat_id, username, password, role, position, birthday, number, balance, login_time, login_time
-		FROM user_sessions 
-		ORDER BY login_time DESC
+		SELECT chat_id, username, password, role, position, birthday, number, created_at, updated_at 
+		FROM users
 	`)
 	if err != nil {
 		return nil, err
@@ -125,8 +133,8 @@ func (r *UserRepository) GetAll() ([]*domain.User, error) {
 
 	var users []*domain.User
 	for rows.Next() {
-		var user domain.User
-		if err := rows.Scan(
+		user := &domain.User{}
+		err := rows.Scan(
 			&user.ChatID,
 			&user.Username,
 			&user.Password,
@@ -134,37 +142,37 @@ func (r *UserRepository) GetAll() ([]*domain.User, error) {
 			&user.Position,
 			&user.Birthday,
 			&user.Number,
-			&user.Balance,
 			&user.CreatedAt,
 			&user.UpdatedAt,
-		); err != nil {
+		)
+		if err != nil {
 			return nil, err
 		}
-		users = append(users, &user)
+		users = append(users, user)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 	return users, nil
 }
 
-// UpdateBalance обновляет баланс пользователя
-func (r *UserRepository) UpdateBalance(chatID int64, newBalance float64) error {
+// Update обновляет существующего пользователя
+func (r *UserRepository) Update(user *domain.User) error {
 	_, err := r.db.Exec(`
-		UPDATE user_sessions SET balance = ? WHERE chat_id = ?
-	`, newBalance, chatID)
-	return err
-}
-
-// UpdatePassword обновляет пароль пользователя
-func (r *UserRepository) UpdatePassword(chatID int64, newPassword string) error {
-	_, err := r.db.Exec(`
-		UPDATE user_sessions SET password = ? WHERE chat_id = ?
-	`, newPassword, chatID)
-	return err
-}
-
-// UpdateRole обновляет роль пользователя
-func (r *UserRepository) UpdateRole(chatID int64, newRole string) error {
-	_, err := r.db.Exec(`
-		UPDATE user_sessions SET role = ? WHERE chat_id = ?
-	`, newRole, chatID)
-	return err
+		UPDATE users 
+		SET username = ?, password = ?, role = ?, position = ?, birthday = ?, number = ?, updated_at = ?
+		WHERE chat_id = ?`,
+		user.Username,
+		user.Password,
+		user.Role,
+		user.Position,
+		user.Birthday,
+		user.Number,
+		time.Now(),
+		user.ChatID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+	return nil
 }

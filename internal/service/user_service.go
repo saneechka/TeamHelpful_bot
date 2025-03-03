@@ -26,7 +26,19 @@ func (s *UserService) GetUser(chatID int64) (*domain.User, error) {
 
 // SaveUser сохраняет или обновляет пользователя
 func (s *UserService) SaveUser(user *domain.User) error {
-	return s.userRepo.Save(user)
+	// Проверяем, существует ли пользователь
+	existingUser, err := s.userRepo.GetByID(user.ChatID)
+	if err != nil {
+		return err
+	}
+
+	if existingUser == nil {
+		// Если пользователь не существует, создаем нового
+		return s.userRepo.Save(user)
+	} else {
+		// Если пользователь существует, обновляем его
+		return s.userRepo.Update(user)
+	}
 }
 
 // DeleteUser удаляет пользователя
@@ -37,31 +49,6 @@ func (s *UserService) DeleteUser(chatID int64) error {
 // GetAllUsers возвращает всех пользователей
 func (s *UserService) GetAllUsers() ([]*domain.User, error) {
 	return s.userRepo.GetAll()
-}
-
-// UpdateUserBalance обновляет баланс пользователя
-func (s *UserService) UpdateUserBalance(chatID int64, amount float64) error {
-	user, err := s.userRepo.GetByID(chatID)
-	if err != nil {
-		return err
-	}
-
-	if user == nil {
-		// Создаем нового пользователя, если он не существует
-		username := fmt.Sprintf("user_%d", chatID)
-		user = &domain.User{
-			ChatID:    chatID,
-			Username:  username,
-			Balance:   amount,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-		}
-		return s.userRepo.Save(user)
-	}
-
-	// Обновляем баланс существующего пользователя
-	newBalance := user.Balance + amount
-	return s.userRepo.UpdateBalance(chatID, newBalance)
 }
 
 // UpdateUserProfile обновляет профиль пользователя
@@ -80,7 +67,6 @@ func (s *UserService) UpdateUserProfile(chatID int64, position, birthday, number
 			Position:  position,
 			Birthday:  birthday,
 			Number:    number,
-			Balance:   0,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
 		}
@@ -93,4 +79,9 @@ func (s *UserService) UpdateUserProfile(chatID int64, position, birthday, number
 	}
 
 	return s.userRepo.Save(user)
+}
+
+// GetUserByUsername возвращает пользователя по его имени пользователя
+func (s *UserService) GetUserByUsername(username string) (*domain.User, error) {
+	return s.userRepo.GetByUsername(username)
 }

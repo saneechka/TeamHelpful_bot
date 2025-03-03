@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"os"
 	"strconv"
 	"time"
@@ -17,6 +19,15 @@ type Config struct {
 	JWTExpiration time.Duration // Время жизни JWT токена
 }
 
+// generateRandomKey генерирует случайный ключ заданной длины
+func generateRandomKey(length int) string {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err) // В реальном приложении следует обработать ошибку более gracefully
+	}
+	return base64.URLEncoding.EncodeToString(bytes)
+}
+
 // NewConfig создает новый экземпляр Config
 func NewConfig() *Config {
 	token := os.Getenv("BOT_TOKEN")
@@ -26,7 +37,7 @@ func NewConfig() *Config {
 
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "users.db" // Значение по умолчанию
+		dbPath = "users.db" 
 	}
 
 	// Проверяем режим отладки
@@ -37,7 +48,7 @@ func NewConfig() *Config {
 	}
 
 	// Устанавливаем таймаут
-	timeout := 60 * time.Second // Увеличиваем таймаут до 60 секунд
+	timeout := 60 * time.Second
 	timeoutEnv := os.Getenv("POLL_TIMEOUT")
 	if timeoutEnv != "" {
 		if t, err := strconv.Atoi(timeoutEnv); err == nil {
@@ -48,7 +59,8 @@ func NewConfig() *Config {
 	// Получаем секретный ключ для JWT
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "your-256-bit-secret" // Значение по умолчанию, в продакшене следует использовать сложный ключ
+		// Генерируем случайный ключ длиной 32 байта (256 бит)
+		jwtSecret = generateRandomKey(32)
 	}
 
 	// Устанавливаем время жизни JWT токена (по умолчанию 24 часа)

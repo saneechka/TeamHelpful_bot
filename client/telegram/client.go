@@ -19,7 +19,7 @@ type Client struct {
 }
 
 func NewClient(token string) *Client {
-	// Create custom transport with TLS config
+	
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			MinVersion: tls.VersionTLS12,

@@ -23,5 +23,5 @@ else
     exit 1
 fi
 
-# Make this script executable
+
 chmod +x deploy.sh 

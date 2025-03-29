@@ -1,25 +1,23 @@
 package telegram
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	_"path"
-	"strconv"
-	"crypto/tls"
+	"log"
+	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+
+	"HelpBot/internal/domain"
 )
 
-const apiHost = "https://api.telegram.org"
-
+// Client представляет клиент для работы с Telegram API
 type Client struct {
 	client  *http.Client
 	baseURL string
 }
 
 func NewClient(token string) *Client {
-	
+	// Create custom transport with TLS config
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			MinVersion: tls.VersionTLS12,
@@ -46,7 +44,7 @@ func (c *Client) Updates(offset, limit int) ([]Update, error) {
 	if err != nil {
 		return nil, err
 	}
-//test commit
+
 	var response UpdatesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, err

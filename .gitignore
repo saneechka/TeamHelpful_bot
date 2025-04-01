@@ -1,0 +1,18 @@
+*.db
+*.exe
+*.dll
+*.o
+
+# ide
+.vscode
+.idea
+# Exclude from upgrade
+upgrade/*.c
+upgrade/*.h
+
+# Exclude upgrade binary
+upgrade/upgrade
+
+
+.db
+*.env

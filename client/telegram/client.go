@@ -25,7 +25,7 @@ func NewClient(token string, updateTimeout time.Duration, messagesLimit int) (*C
 	}
 
 	// Включаем режим отладки
-	bot.Debug = true
+	bot.Debug = false
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	return &Client{
@@ -69,6 +69,7 @@ func (c *Client) SendMessage(chatID int64, text string) error {
 }
 
 // SendMessageWithKeyboard отправляет сообщение с клавиатурой
+//переписать на дженерики
 func (c *Client) SendMessageWithKeyboard(chatID int64, text string, keyboard interface{}) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 

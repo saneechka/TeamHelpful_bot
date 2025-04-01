@@ -48,3 +48,4 @@ users.db
 # OS specific files
 .DS_Store
 Thumbs.db
+build/

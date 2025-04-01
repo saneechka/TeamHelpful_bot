@@ -129,3 +129,17 @@ func (c *Client) CreateReplyKeyboard(buttons [][]string) tgbotapi.ReplyKeyboardM
 	}
 	return tgbotapi.NewReplyKeyboard(keyboard...)
 }
+
+// StartPolling начинает получение обновлений от Telegram
+func (c *Client) StartPolling(handler func(*tgbotapi.Update)) error {
+	u := tgbotapi.NewUpdate(0)
+	u.Timeout = 60
+
+	updates := c.bot.GetUpdatesChan(u)
+
+	for update := range updates {
+		handler(&update)
+	}
+
+	return nil
+}

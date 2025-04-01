@@ -30,3 +30,21 @@ upgrade/*.h
 
 # Exclude upgrade binary
 upgrade/upgrade
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Database files
+*.db
+users.db
+
+# Logs
+*.log
+
+# OS specific files
+.DS_Store
+Thumbs.db

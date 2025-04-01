@@ -32,7 +32,7 @@ func generateRandomKey(length int) string {
 func NewConfig() *Config {
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
-		token = "7828331860:AAG_XkEaE2vY4EKdGZaOJ9xD74D1fVV0U_k" // Значение по умолчанию
+		token = "bot token" // Значение по умолчанию
 	}
 
 	dbPath := os.Getenv("DB_PATH")

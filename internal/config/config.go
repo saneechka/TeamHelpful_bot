@@ -23,21 +23,21 @@ type Config struct {
 func generateRandomKey(length int) string {
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
-		panic(err) // В реальном приложении следует обработать ошибку более gracefully
+		panic(err)
 	}
 	return base64.URLEncoding.EncodeToString(bytes)
 }
 
-// NewConfig создает новый экземпляр Config
+// NewConfig создает экземпляр Config
 func NewConfig() *Config {
 	token := os.Getenv("BOT_TOKEN")
 	if token == "" {
-		token = "bot token" // Значение по умолчанию
+		token = "OurToken" // читать из env файлика
 	}
 
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		dbPath = "users.db" 
+		dbPath = "users.db"
 	}
 
 	// Проверяем режим отладки

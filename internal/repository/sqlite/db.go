@@ -32,6 +32,7 @@ func createTables(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS users (
 			chat_id INTEGER PRIMARY KEY,
 			username TEXT UNIQUE NOT NULL,
+			position TEXT NOT NULL
 			password TEXT NOT NULL,
 			role TEXT DEFAULT 'user',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

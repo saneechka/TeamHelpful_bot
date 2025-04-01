@@ -18,4 +18,15 @@
 vendor/
 
 # Go workspace file
-go.work 
+go.work
+
+# IDE
+.vscode
+.idea
+
+# Exclude from upgrade
+upgrade/*.c
+upgrade/*.h
+
+# Exclude upgrade binary
+upgrade/upgrade

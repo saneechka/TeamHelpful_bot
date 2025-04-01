@@ -12,103 +12,120 @@ import (
 
 // Client представляет клиент для работы с Telegram API
 type Client struct {
-	client  *http.Client
-	baseURL string
+	bot *tgbotapi.BotAPI
 }
 
-func NewClient(token string) *Client {
-	// Create custom transport with TLS config
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
+func NewClient(token string, pollTimeout time.Duration, messagesLimit int) (*Client, error) {
+	bot, err := tgbotapi.NewBotAPI(token)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create bot: %w", err)
 	}
+
+	// Включаем режим отладки
+	bot.Debug = false
+	log.Printf("Authorized on account %s", bot.Self.UserName)
 
 	return &Client{
-		client:  &http.Client{Transport: tr},
-		baseURL: apiHost + "/bot" + token,
-	}
+		bot: bot,
+	}, nil
 }
 
-type UpdatesResponse struct {
-	Ok      bool     `json:"ok"`
-	Updates []Update `json:"result"`
-}
-
-func (c *Client) Updates(offset, limit int) ([]Update, error) {
-	q := url.Values{}
-	q.Add("offset", strconv.Itoa(offset))
-	q.Add("limit", strconv.Itoa(limit))
-
-	data, err := c.DoRequest("getUpdates", q)
-	if err != nil {
-		return nil, err
-	}
-
-	var response UpdatesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, err
-	}
-
-	return response.Updates, nil
-}
-
-func (c *Client) DoRequest(method string, query url.Values) ([]byte, error) {
-    u := fmt.Sprintf("%s/%s", c.baseURL, method)
-    
-    request, err := http.NewRequest(http.MethodGet, u, nil)
-    if err != nil {
-        return nil, fmt.Errorf("failed to create request: %w", err)
-    }
-
-    request.URL.RawQuery = query.Encode()
-
-    response, err := c.client.Do(request)
-    if err != nil {
-        return nil, fmt.Errorf("failed to send request: %w", err)
-    }
-    defer response.Body.Close()
-
-    body, err := io.ReadAll(response.Body)
-    if err != nil {
-        return nil, fmt.Errorf("failed to read response: %w", err)
-    }
-
-    if response.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("unexpected status code: %d, body: %s", response.StatusCode, body)
-    }
-
-    return body, nil
-}
-
+// SendMessage отправляет сообщение
 func (c *Client) SendMessage(chatID int64, text string) error {
-	q := url.Values{}
-	q.Add("chat_id", strconv.FormatInt(chatID, 10))
-	q.Add("text", text)
-
-	_, err := c.DoRequest("sendMessage", q)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-
-	return nil
+	msg := tgbotapi.NewMessage(chatID, text)
+	_, err := c.bot.Send(msg)
+	return err
 }
 
-func (c *Client) SendMessageWithKeyboard(chatID int64, text string, keyboard ReplyKeyboardMarkup) error {
-    q := url.Values{}
-    q.Add("chat_id", strconv.FormatInt(chatID, 10))
-    q.Add("text", text)
-    
-    keyboardJSON, err := json.Marshal(keyboard)
-    if err != nil {
-        return fmt.Errorf("failed to marshal keyboard: %w", err)
-    }
-    q.Add("reply_markup", string(keyboardJSON))
+// SendMessageWithKeyboard отправляет сообщение с клавиатурой
+func (c *Client) SendMessageWithKeyboard(chatID int64, text string, keyboard interface{}) error {
+	msg := tgbotapi.NewMessage(chatID, text)
 
-    _, err = c.DoRequest("sendMessage", q)
-    if err != nil {
-        return fmt.Errorf("failed to send message with keyboard: %w", err)
-    }
+	// Проверяем тип клавиатуры
+	switch k := keyboard.(type) {
+	case tgbotapi.ReplyKeyboardMarkup:
+		msg.ReplyMarkup = k
+	case tgbotapi.InlineKeyboardMarkup:
+		msg.ReplyMarkup = k
+	default:
+		msg.ReplyMarkup = keyboard
+	}
 
-    return nil
+	_, err := c.bot.Send(msg)
+	return err
+}
+
+// RemoveKeyboard удаляет клавиатуру
+func (c *Client) RemoveKeyboard(chatID int64, text string) error {
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
+	_, err := c.bot.Send(msg)
+	return err
+}
+
+// GetUserFromMessage извлекает информацию о пользователе из сообщения
+func (c *Client) GetUserFromMessage(message *tgbotapi.Message) *domain.User {
+	if message == nil || message.From == nil {
+		return nil
+	}
+
+	// Генерируем уникальное имя пользователя, добавляя chat_id
+	username := fmt.Sprintf("%s_%d", message.From.UserName, message.Chat.ID)
+
+	return &domain.User{
+		ChatID:    message.Chat.ID,
+		Username:  username,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+}
+
+// GetLoginKeyboard возвращает клавиатуру для авторизации
+func (c *Client) GetLoginKeyboard() tgbotapi.ReplyKeyboardMarkup {
+	buttons := [][]string{
+		{"Войти"},
+		{"Зарегистрироваться"},
+	}
+	return c.CreateReplyKeyboard(buttons)
+}
+
+// GetMainMenuKeyboard возвращает клавиатуру главного меню
+func (c *Client) GetMainMenuKeyboard(isAdmin bool) tgbotapi.ReplyKeyboardMarkup {
+	var buttons [][]string
+	if isAdmin {
+		buttons = [][]string{
+			{"Мой профиль", "Пополнить баланс"},
+			{"Список пользователей", "Управление пользователями"},
+			{"Выйти"},
+		}
+	} else {
+		buttons = [][]string{
+			{"Мой профиль", "Пополнить баланс"},
+			{"Выйти"},
+		}
+	}
+	return c.CreateReplyKeyboard(buttons)
+}
+
+// GetUserManagementKeyboard возвращает клавиатуру управления пользователями
+func (c *Client) GetUserManagementKeyboard() tgbotapi.ReplyKeyboardMarkup {
+	buttons := [][]string{
+		{"Добавить пользователя", "Удалить пользователя"},
+		{"Изменить роль пользователя"},
+		{"Назад"},
+	}
+	return c.CreateReplyKeyboard(buttons)
+}
+
+// CreateReplyKeyboard создает клавиатуру с указанными кнопками
+func (c *Client) CreateReplyKeyboard(buttons [][]string) tgbotapi.ReplyKeyboardMarkup {
+	var keyboard [][]tgbotapi.KeyboardButton
+	for _, row := range buttons {
+		var keyboardRow []tgbotapi.KeyboardButton
+		for _, text := range row {
+			keyboardRow = append(keyboardRow, tgbotapi.NewKeyboardButton(text))
+		}
+		keyboard = append(keyboard, keyboardRow)
+	}
+	return tgbotapi.NewReplyKeyboard(keyboard...)
 }

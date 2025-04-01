@@ -251,10 +251,5 @@ docker-compose down
 - Telegram: [@bell1matita](https://t.me/bell1matita)
 - Email: alexandro.dev.work@gmail.com
 
-<<<<<<< HEAD
 
----
 
-⚽️ Разработано с любовью к футболу и чистому коду
-=======
->>>>>>> Test
